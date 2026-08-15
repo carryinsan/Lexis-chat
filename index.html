@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lexis Chat - Private & Secure Messaging</title>
+    <title>Lexis Chat - Private Personal Messaging</title>
 
-    <!-- Tailwind CSS -->
+    <!-- UI Framework & Styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -28,9 +28,9 @@
             }
         }
     </script>
-    
-    <!-- Icons & Client Libraries -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Core Client Storage & Realtime Libraries -->
     <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -65,13 +65,13 @@
 </head>
 <body class="h-full w-full overflow-hidden text-slate-100 font-sans select-none bg-slate-950">
 
-    <!-- MAIN APP CANVAS -->
+    <!-- MAIN APPLICATION CONTAINER -->
     <div id="appContainer" class="h-full w-full flex bg-slate-950 relative">
 
         <!-- ============================================================================== -->
-        <!-- 1. AUTHENTICATION LANDING MODAL (DEFAULT: CREATE ACCOUNT)                      -->
+        <!-- 1. EMBEDDED IN-APP AUTHENTICATION SCREEN (NO REDIRECTS, NO FORMS)             -->
         <!-- ============================================================================== -->
-        <div id="authModal" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div id="authScreen" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
             <div class="glass-panel w-full max-w-md rounded-3xl p-8 space-y-6 shadow-2xl relative overflow-hidden border border-slate-800">
                 <div class="absolute -top-12 -right-12 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -81,68 +81,281 @@
                         <i class="fa-solid fa-shield-halved"></i>
                     </div>
                     <h1 class="text-2xl font-extrabold tracking-tight text-white">Lexis Chat</h1>
-                    <p class="text-xs text-slate-400">Private & Personal Messaging</p>
+                    <p class="text-xs text-slate-400">Private & Personal Messaging System</p>
                 </div>
 
-                <!-- Auth Mode Switcher (Create Account First) -->
+                <!-- Auth Mode Selector (Create Account Default) -->
                 <div class="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800">
                     <button type="button" id="tabSignup" class="flex-1 py-2.5 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition">Create Account</button>
                     <button type="button" id="tabSignin" class="flex-1 py-2.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Sign In</button>
                 </div>
 
-                <!-- Auth Form (Standardized handling via Event Listeners) -->
-                <form id="authForm" action="javascript:void(0);" class="space-y-4">
-                    <!-- Display Name Field (Visible by default for Signup) -->
-                    <div id="nicknameGroup" class="space-y-1">
-                        <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Your Display Name</label>
+                <!-- Input Controls Box (Pure DIVs, No HTML Form tags) -->
+                <div class="space-y-4">
+                    <!-- Display Name Field (Visible by default for Create Account) -->
+                    <div id="nicknameFieldGroup" class="space-y-1">
+                        <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Display Name</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-user"></i></span>
                             <input id="authNickname" type="text" placeholder="e.g. Alex Mercer" class="w-full glass-input rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none">
                         </div>
                     </div>
 
+                    <!-- Username Handle -->
                     <div class="space-y-1">
                         <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Username Handle</label>
                         <div class="relative flex items-center">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-at"></i></span>
-                            <input id="authUsername" type="text" required placeholder="alex" class="w-full glass-input rounded-xl pl-9 pr-24 py-2.5 text-xs text-white focus:outline-none">
+                            <input id="authUsername" type="text" placeholder="alex" class="w-full glass-input rounded-xl pl-9 pr-24 py-2.5 text-xs text-white focus:outline-none">
                             <span class="absolute right-3 text-[10px] text-emerald-400/80 font-mono">@lexis.chat.app</span>
                         </div>
                     </div>
 
+                    <!-- Security Passcode -->
                     <div class="space-y-1">
                         <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Security Key / Password</label>
                         <div class="relative">
                             <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-key"></i></span>
-                            <input id="authPassword" type="password" required placeholder="••••••••••••" class="w-full glass-input rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none">
+                            <input id="authPassword" type="password" placeholder="••••••••••••" class="w-full glass-input rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none">
                         </div>
                     </div>
 
-                    <div id="authError" class="hidden text-xs text-red-400 bg-red-950/40 border border-red-800/50 p-3 rounded-xl text-center"></div>
+                    <div id="authStatusBox" class="hidden text-xs p-3 rounded-xl text-center"></div>
 
-                    <button id="authSubmitBtn" type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2">
-                        <span id="authBtnText">Create Account</span>
+                    <!-- Action Button -->
+                    <button type="button" id="authSubmitBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2">
+                        <span id="authBtnLabel">Create Account & Enter Chat</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
-                </form>
+                </div>
 
                 <div class="text-[10px] text-center text-slate-500 flex items-center justify-center gap-2">
                     <i class="fa-solid fa-lock text-emerald-500"></i>
-                    <span>Protected Account • Instant Delivery</span>
+                    <span>Protected Account • Instant Messaging</span>
                 </div>
             </div>
         </div>
 
         <!-- ============================================================================== -->
-        <!-- 2. BAN WARNING MODAL                                                           -->
+        <!-- 2. MAIN APPLICATION WORKSPACE (SHOWN AFTER AUTH)                               -->
         <!-- ============================================================================== -->
+        <div id="mainWorkspace" class="hidden h-full w-full flex">
+            
+            <!-- Sidebar Drawer -->
+            <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-slate-900 border-r border-slate-800/80 flex flex-col h-full z-20 transition-all duration-300">
+                
+                <!-- Profile Header -->
+                <div class="p-4 border-b border-slate-800/80 bg-slate-950/40 flex justify-between items-center">
+                    <div class="flex items-center space-x-3 cursor-pointer">
+                        <div id="userAvatar" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                            ?
+                        </div>
+                        <div class="overflow-hidden">
+                            <h2 id="myDisplayName" class="font-bold text-sm text-slate-100 truncate">Loading...</h2>
+                            <p id="myLexisId" class="text-[10px] text-emerald-400 font-mono truncate">@lexis.chat.app</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1">
+                        <button type="button" id="btnOpenCreateGroup" title="Create Group Chat" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                            <i class="fa-solid fa-users text-base"></i>
+                        </button>
+                        <button type="button" id="btnOpenAddContact" title="Add New Contact" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                            <i class="fa-solid fa-user-plus text-base"></i>
+                        </button>
+                        <button type="button" id="btnLogout" title="Sign Out" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                            <i class="fa-solid fa-right-from-bracket text-base"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <div class="flex border-b border-slate-800/80 bg-slate-950/20 p-1 text-xs font-semibold">
+                    <button type="button" id="sidebarTabChats" class="flex-1 py-2 text-emerald-400 border-b-2 border-emerald-500 transition">Chats</button>
+                    <button type="button" id="sidebarTabContacts" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Contacts</button>
+                    <button type="button" id="sidebarTabGroups" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Groups</button>
+                </div>
+
+                <!-- Search Input -->
+                <div class="p-3 border-b border-slate-800/60 bg-slate-900">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input id="searchInput" type="text" placeholder="Search conversations or handle..." class="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Sidebar Conversation Items -->
+                <div id="chatsList" class="flex-1 overflow-y-auto divide-y divide-slate-800/40">
+                    <!-- Rendered dynamically -->
+                </div>
+            </aside>
+
+            <!-- Chat Active Viewport -->
+            <main id="chatMain" class="hidden md:flex flex-1 flex-col h-full bg-slate-950 relative">
+                
+                <!-- Empty Chat Selected Placeholder -->
+                <div id="emptyChatPlaceholder" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                    <div class="w-24 h-24 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-4xl shadow-inner">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                    <div class="max-w-sm space-y-1">
+                        <h3 class="text-lg font-bold text-slate-200">Personal & Secure Messaging</h3>
+                        <p class="text-xs text-slate-400 leading-relaxed">Select a conversation or add a contact by their unique <span class="text-emerald-400 font-mono">@lexis.chat.app</span> handle.</p>
+                    </div>
+                </div>
+
+                <!-- Active Chat Screen -->
+                <div id="activeChatArea" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                    
+                    <!-- Header -->
+                    <header class="p-3.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur flex justify-between items-center z-10">
+                        <div class="flex items-center space-x-3">
+                            <button type="button" id="btnBackMobile" class="md:hidden text-slate-400 hover:text-white p-2 text-sm">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <div id="activeAvatar" class="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 font-bold flex items-center justify-center text-sm shadow">
+                                ?
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h3 id="activeName" class="font-bold text-sm text-slate-100">Conversation</h3>
+                                    <button type="button" id="btnEditAlias" title="Edit Saved Nickname" class="text-slate-500 hover:text-emerald-400 text-xs">
+                                        <i class="fa-solid fa-pen-to-square"></i>
+                                    </button>
+                                </div>
+                                <p id="activeStatus" class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
+                                    <span>Offline</span>
+                                </p>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Messages Container -->
+                    <div id="messagesViewport" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/60 relative">
+                        <!-- Messages dynamically appended -->
+                    </div>
+
+                    <!-- Input Bar -->
+                    <footer class="p-3 border-t border-slate-800/80 bg-slate-900/90 backdrop-blur">
+                        <div class="flex items-center space-x-2">
+                            
+                            <label title="Attach Image" class="cursor-pointer text-slate-400 hover:text-emerald-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
+                                <i class="fa-solid fa-paperclip text-base"></i>
+                                <input type="file" id="mediaFileInput" class="hidden" accept="image/*,video/*,audio/*">
+                            </label>
+
+                            <button type="button" id="voiceRecordBtn" title="Record Voice Note" class="text-slate-400 hover:text-red-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
+                                <i class="fa-solid fa-microphone text-base"></i>
+                            </button>
+
+                            <input id="messageInput" type="text" placeholder="Type a message..." class="flex-1 glass-input rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none">
+
+                            <button type="button" id="sendMessageBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 px-4 rounded-xl text-xs font-semibold transition shadow-lg shadow-emerald-900/40 flex items-center justify-center space-x-1">
+                                <span>Send</span>
+                                <i class="fa-solid fa-paper-plane text-xs"></i>
+                            </button>
+                        </div>
+
+                        <!-- Voice Recorder Indicator -->
+                        <div id="voiceRecordingBar" class="hidden flex items-center justify-between bg-red-950/40 border border-red-800/50 p-2 px-4 rounded-xl mt-2 text-xs text-red-300">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500 recording-pulse"></span>
+                                <span>Recording Audio Note...</span>
+                                <span id="recordingTimer" class="font-mono font-bold">00:00</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button type="button" id="btnCancelVoice" class="text-xs text-slate-400 hover:text-white px-2 py-1">Cancel</button>
+                                <button type="button" id="btnSendVoice" class="bg-red-600 text-white text-xs px-3 py-1 rounded-lg">Send Audio</button>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            </main>
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 3. MODAL DIALOGS                                                               -->
+        <!-- ============================================================================== -->
+
+        <!-- Add Contact Modal -->
+        <div id="addContactModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> Add New Contact</h3>
+                    <button type="button" id="btnCloseAddContact" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-400">User Handle</label>
+                        <input id="searchLexisInput" type="text" placeholder="username@lexis.chat.app" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-400">Custom Saved Nickname (Optional)</label>
+                        <input id="customAliasInput" type="text" placeholder="e.g. Work Friend" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                </div>
+                <button type="button" id="btnSubmitAddContact" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                    Find & Save Contact
+                </button>
+            </div>
+        </div>
+
+        <!-- Edit Contact Alias Modal -->
+        <div id="editAliasModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-sm text-slate-100">Edit Saved Nickname</h3>
+                    <button type="button" id="btnCloseEditAlias" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Custom Nickname</label>
+                    <input id="editAliasInput" type="text" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                </div>
+                <button type="button" id="btnSubmitEditAlias" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                    Save Nickname
+                </button>
+            </div>
+        </div>
+
+        <!-- Create Group Modal -->
+        <div id="createGroupModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="glass-panel w-full max-w-md rounded-3xl p-6 space-y-4 border border-slate-800">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Create Group Chat</h3>
+                    <button type="button" id="btnCloseCreateGroup" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-400">Group Name</label>
+                        <input id="groupNameInput" type="text" placeholder="e.g. Project Team" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase tracking-wider text-slate-400">Select Members</label>
+                        <div id="groupMembersChecklist" class="max-h-40 overflow-y-auto bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+                <button type="button" id="btnSubmitCreateGroup" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                    Create Group
+                </button>
+            </div>
+        </div>
+
+        <!-- Lightbox Modal -->
+        <div id="lightboxModal" class="hidden fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
+            <button type="button" id="btnCloseLightbox" class="absolute top-4 right-4 text-white text-2xl p-2"><i class="fa-solid fa-xmark"></i></button>
+            <img id="lightboxImage" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain">
+        </div>
+
+        <!-- Ban Warning Modal -->
         <div id="banModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
             <div class="bg-slate-900 border border-red-500/40 p-8 rounded-3xl max-w-md w-full text-center space-y-5 shadow-2xl">
                 <div class="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-red-500 text-4xl">
                     <i class="fa-solid fa-user-slash"></i>
                 </div>
                 <div>
-                    <h2 class="text-xl font-bold text-red-400">Account Access Suspended</h2>
+                    <h2 class="text-xl font-bold text-red-400">Account Restricted</h2>
                     <p id="banReasonText" class="text-xs text-slate-300 mt-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-left font-mono"></p>
                 </div>
                 <div class="space-y-2">
@@ -159,211 +372,10 @@
             </div>
         </div>
 
-        <!-- ============================================================================== -->
-        <!-- 3. SIDEBAR NAVIGATION & CONTACTS / GROUPS                                      -->
-        <!-- ============================================================================== -->
-        <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-slate-900 border-r border-slate-800/80 flex flex-col h-full z-20 transition-all duration-300">
-            
-            <div class="p-4 border-b border-slate-800/80 bg-slate-950/40 flex justify-between items-center">
-                <div class="flex items-center space-x-3 cursor-pointer">
-                    <div id="userAvatar" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-md">
-                        ?
-                    </div>
-                    <div class="overflow-hidden">
-                        <h2 id="myDisplayName" class="font-bold text-sm text-slate-100 truncate">Loading...</h2>
-                        <p id="myLexisId" class="text-[10px] text-emerald-400 font-mono truncate">@lexis.chat.app</p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-1">
-                    <button type="button" id="btnOpenCreateGroup" title="Create Group Chat" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
-                        <i class="fa-solid fa-users-medical text-base"></i>
-                    </button>
-                    <button type="button" id="btnOpenAddContact" title="Add New Contact" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
-                        <i class="fa-solid fa-user-plus text-base"></i>
-                    </button>
-                    <button type="button" id="btnLogout" title="Sign Out" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl text-xs transition">
-                        <i class="fa-solid fa-right-from-bracket text-base"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Tab Switcher -->
-            <div class="flex border-b border-slate-800/80 bg-slate-950/20 p-1 text-xs font-semibold">
-                <button type="button" id="sidebarTabChats" class="flex-1 py-2 text-emerald-400 border-b-2 border-emerald-500 transition">Chats</button>
-                <button type="button" id="sidebarTabContacts" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Contacts</button>
-                <button type="button" id="sidebarTabGroups" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Groups</button>
-            </div>
-
-            <!-- Search Bar -->
-            <div class="p-3 border-b border-slate-800/60 bg-slate-900">
-                <div class="relative">
-                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
-                    <input id="searchInput" type="text" placeholder="Search conversations or username..." class="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none">
-                </div>
-            </div>
-
-            <div id="chatsList" class="flex-1 overflow-y-auto divide-y divide-slate-800/40">
-                <!-- Rendered Dynamically -->
-            </div>
-        </aside>
-
-        <!-- ============================================================================== -->
-        <!-- 4. ACTIVE CHAT VIEWPORT                                                        -->
-        <!-- ============================================================================== -->
-        <main id="chatMain" class="hidden md:flex flex-1 flex-col h-full bg-slate-950 relative">
-            
-            <div id="emptyChatPlaceholder" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
-                <div class="w-24 h-24 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-4xl shadow-inner">
-                    <i class="fa-solid fa-comments"></i>
-                </div>
-                <div class="max-w-sm space-y-1">
-                    <h3 class="text-lg font-bold text-slate-200">Secure Personal Messaging</h3>
-                    <p class="text-xs text-slate-400 leading-relaxed">Select a conversation or add a friend using their unique <span class="text-emerald-400 font-mono">@lexis.chat.app</span> handle.</p>
-                </div>
-            </div>
-
-            <div id="activeChatArea" class="hidden flex-1 flex flex-col h-full overflow-hidden">
-                
-                <header class="p-3.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur flex justify-between items-center z-10">
-                    <div class="flex items-center space-x-3">
-                        <button type="button" id="btnBackMobile" class="md:hidden text-slate-400 hover:text-white p-2 text-sm">
-                            <i class="fa-solid fa-arrow-left"></i>
-                        </button>
-                        <div id="activeAvatar" class="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 font-bold flex items-center justify-center text-sm shadow">
-                            ?
-                        </div>
-                        <div>
-                            <div class="flex items-center space-x-2">
-                                <h3 id="activeName" class="font-bold text-sm text-slate-100">Conversation</h3>
-                                <button type="button" id="btnEditAlias" title="Edit Saved Nickname" class="text-slate-500 hover:text-emerald-400 text-xs">
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </button>
-                            </div>
-                            <p id="activeStatus" class="text-[11px] text-slate-400 flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
-                                <span>Offline</span>
-                            </p>
-                        </div>
-                    </div>
-                </header>
-
-                <div id="messagesViewport" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/60 relative">
-                    <!-- Rendered Dynamically -->
-                </div>
-
-                <footer class="p-3 border-t border-slate-800/80 bg-slate-900/90 backdrop-blur">
-                    <form id="chatForm" action="javascript:void(0);" class="flex items-center space-x-2">
-                        
-                        <label title="Attach Image" class="cursor-pointer text-slate-400 hover:text-emerald-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
-                            <i class="fa-solid fa-paperclip text-base"></i>
-                            <input type="file" id="mediaFileInput" class="hidden" accept="image/*,video/*,audio/*">
-                        </label>
-
-                        <button type="button" id="voiceRecordBtn" title="Record Voice Note" class="text-slate-400 hover:text-red-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
-                            <i class="fa-solid fa-microphone text-base"></i>
-                        </button>
-
-                        <input id="messageInput" type="text" placeholder="Type a message..." class="flex-1 glass-input rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none">
-
-                        <button id="sendMessageBtn" type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 px-4 rounded-xl text-xs font-semibold transition shadow-lg shadow-emerald-900/40 flex items-center justify-center space-x-1">
-                            <span>Send</span>
-                            <i class="fa-solid fa-paper-plane text-xs"></i>
-                        </button>
-                    </form>
-
-                    <div id="voiceRecordingBar" class="hidden flex items-center justify-between bg-red-950/40 border border-red-800/50 p-2 px-4 rounded-xl mt-2 text-xs text-red-300">
-                        <div class="flex items-center space-x-2">
-                            <span class="w-3 h-3 rounded-full bg-red-500 recording-pulse"></span>
-                            <span>Recording Audio Note...</span>
-                            <span id="recordingTimer" class="font-mono font-bold">00:00</span>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <button type="button" id="btnCancelVoice" class="text-xs text-slate-400 hover:text-white px-2 py-1">Cancel</button>
-                            <button type="button" id="btnSendVoice" class="bg-red-600 text-white text-xs px-3 py-1 rounded-lg">Send Audio</button>
-                        </div>
-                    </div>
-                </footer>
-            </div>
-        </main>
     </div>
 
     <!-- ============================================================================== -->
-    <!-- 5. DIALOG MODALS                                                               -->
-    <!-- ============================================================================== -->
-
-    <!-- Add Contact Modal -->
-    <div id="addContactModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
-            <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> Add New Friend</h3>
-                <button type="button" id="btnCloseAddContact" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase tracking-wider text-slate-400">User Handle</label>
-                    <input id="searchLexisInput" type="text" placeholder="username@lexis.chat.app" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Custom Saved Nickname (Optional)</label>
-                    <input id="customAliasInput" type="text" placeholder="e.g. Work Friend" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-                </div>
-            </div>
-            <button type="button" id="btnSubmitAddContact" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
-                Find & Save Contact
-            </button>
-        </div>
-    </div>
-
-    <!-- Edit Contact Alias Modal -->
-    <div id="editAliasModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
-            <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm text-slate-100">Edit Saved Nickname</h3>
-                <button type="button" id="btnCloseEditAlias" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-2">
-                <label class="text-[10px] uppercase tracking-wider text-slate-400">Custom Nickname</label>
-                <input id="editAliasInput" type="text" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-            </div>
-            <button type="button" id="btnSubmitEditAlias" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
-                Save Nickname
-            </button>
-        </div>
-    </div>
-
-    <!-- Create Group Modal -->
-    <div id="createGroupModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="glass-panel w-full max-w-md rounded-3xl p-6 space-y-4 border border-slate-800">
-            <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Create Group Chat</h3>
-                <button type="button" id="btnCloseCreateGroup" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="space-y-3">
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Group Name</label>
-                    <input id="groupNameInput" type="text" placeholder="e.g. Project Team" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
-                </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Select Members</label>
-                    <div id="groupMembersChecklist" class="max-h-40 overflow-y-auto bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
-            </div>
-            <button type="button" id="btnSubmitCreateGroup" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
-                Create Group
-            </button>
-        </div>
-    </div>
-
-    <!-- Media Lightbox Preview Modal -->
-    <div id="lightboxModal" class="hidden fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
-        <button type="button" id="btnCloseLightbox" class="absolute top-4 right-4 text-white text-2xl p-2"><i class="fa-solid fa-xmark"></i></button>
-        <img id="lightboxImage" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain">
-    </div>
-
-    <!-- ============================================================================== -->
-    <!-- 6. FAILSAFE JAVASCRIPT APPLICATION ENGINE                                      -->
+    <!-- 4. APPLICATION CORE ENGINE                                                     -->
     <!-- ============================================================================== -->
     <script>
         // Server Credentials
@@ -372,22 +384,33 @@
         const UPSTASH_URL = "https://one-dog-130412.upstash.io";
         const UPSTASH_TOKEN = "gQAAAAAAAf1sAAIgcDE4YjcyZTQzYWM3NTc0YjI2ODdhYjA3MmU1ODBkMTQwNQ";
 
-        // Supabase Instance
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let supabase = null;
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch (e) {
+            console.warn("Supabase client init fallback:", e);
+        }
 
-        // Client IndexedDB
-        const db = new Dexie('LexisClientDB');
-        db.version(2).stores({
-            messages: 'idempotency_key, chatId, senderId, receiverId, timestamp, status',
-            contacts: 'id, lexis_id, display_name, custom_alias',
-            groups: 'id, name, adminIds, memberIds, createdAt'
-        });
+        // Local IndexedDB Database
+        let db = null;
+        try {
+            db = new Dexie('LexisClientDB');
+            db.version(2).stores({
+                messages: 'idempotency_key, chatId, senderId, receiverId, timestamp, status',
+                contacts: 'id, lexis_id, display_name, custom_alias',
+                groups: 'id, name, adminIds, memberIds, createdAt'
+            });
+        } catch (e) {
+            console.warn("Dexie DB init fallback:", e);
+        }
 
-        // App State
+        // State Variables
         let currentUser = null;
         let activeChatTarget = null;
         let deviceFingerprint = null;
-        let isSignup = true; // DEFAULT TO CREATE ACCOUNT
+        let isSignup = true; // DEFAULT: Create Account First
         let activeSidebarTab = 'chats';
 
         // Voice Recorder State
@@ -396,7 +419,7 @@
         let recordingTimerInterval = null;
         let recordingSeconds = 0;
 
-        // Upstash Redis Helper
+        // Upstash REST API Helper
         async function upstashCommand(cmdArray) {
             try {
                 const response = await fetch(`${UPSTASH_URL}`, {
@@ -415,14 +438,14 @@
             }
         }
 
-        // Run when DOM ready
+        // DOM Loaded Handler
         window.addEventListener('DOMContentLoaded', async () => {
-            initDOMEventListeners();
+            bindEventListeners();
             await initHardwareFingerprint();
             checkExistingSession();
         });
 
-        // Resilient Fingerprinting (Failsafe against AdBlockers)
+        // Safe Hardware Lock Generator
         async function initHardwareFingerprint() {
             try {
                 if (window.FingerprintJS) {
@@ -433,7 +456,6 @@
                     throw new Error("FingerprintJS library unavailable");
                 }
             } catch (e) {
-                // Persistent Local Device Signature Fallback
                 let fallback = localStorage.getItem('lexis_device_fp');
                 if (!fallback) {
                     fallback = 'FP_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36);
@@ -443,33 +465,48 @@
             }
         }
 
-        // Programmatic Event Listener Binding (Guarantees zero reference errors)
-        function initDOMEventListeners() {
-            // Auth Tab Switching
+        // Programmatic Event Binding (No HTML inline handlers)
+        function bindEventListeners() {
+            // Auth Tabs
             document.getElementById('tabSignup').addEventListener('click', () => setAuthMode(true));
             document.getElementById('tabSignin').addEventListener('click', () => setAuthMode(false));
+            document.getElementById('authSubmitBtn').addEventListener('click', handleAuthAction);
 
-            // Auth Form Submission
-            document.getElementById('authForm').addEventListener('submit', handleAuthSubmit);
+            // Auth Input Enter Key Triggers
+            ['authNickname', 'authUsername', 'authPassword'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAuthAction();
+                        }
+                    });
+                }
+            });
 
             // Sidebar Tabs
             document.getElementById('sidebarTabChats').addEventListener('click', () => switchSidebarTab('chats'));
             document.getElementById('sidebarTabContacts').addEventListener('click', () => switchSidebarTab('contacts'));
             document.getElementById('sidebarTabGroups').addEventListener('click', () => switchSidebarTab('groups'));
-
-            // Search Filter
             document.getElementById('searchInput').addEventListener('input', (e) => handleSearchFilter(e.target.value));
 
-            // Chat Form
-            document.getElementById('chatForm').addEventListener('submit', handleSendMessage);
+            // Chat Input & Actions
+            document.getElementById('sendMessageBtn').addEventListener('click', handleSendMessage);
+            document.getElementById('messageInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSendMessage();
+                }
+            });
             document.getElementById('mediaFileInput').addEventListener('change', handleMediaSelected);
 
-            // Audio Recording
+            // Voice Recording
             document.getElementById('voiceRecordBtn').addEventListener('click', toggleVoiceRecording);
             document.getElementById('btnCancelVoice').addEventListener('click', cancelVoiceRecording);
             document.getElementById('btnSendVoice').addEventListener('click', finishAndSendVoiceNote);
 
-            // Modals & Navigation
+            // Modals & Profile Buttons
             document.getElementById('btnOpenAddContact').addEventListener('click', openAddContactModal);
             document.getElementById('btnCloseAddContact').addEventListener('click', () => closeModal('addContactModal'));
             document.getElementById('btnSubmitAddContact').addEventListener('click', executeAddContact);
@@ -488,26 +525,40 @@
             document.getElementById('sendAppealBtn').addEventListener('click', handleSendAppeal);
         }
 
-        // Auth Tab Mode Switcher
+        // Toggle Auth View Mode
         function setAuthMode(signup) {
             isSignup = signup;
-            document.getElementById('nicknameGroup').classList.toggle('hidden', !signup);
+            document.getElementById('nicknameFieldGroup').classList.toggle('hidden', !signup);
             
             const btnSignin = document.getElementById('tabSignin');
             const btnSignup = document.getElementById('tabSignup');
-            const submitText = document.getElementById('authBtnText');
+            const label = document.getElementById('authBtnLabel');
 
             if (signup) {
                 btnSignup.className = 'flex-1 py-2.5 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition';
                 btnSignin.className = 'flex-1 py-2.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
-                submitText.innerText = 'Create Account';
+                label.innerText = 'Create Account & Enter Chat';
             } else {
                 btnSignin.className = 'flex-1 py-2.5 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition';
                 btnSignup.className = 'flex-1 py-2.5 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition';
-                submitText.innerText = 'Sign In';
+                label.innerText = 'Sign In to Lexis';
             }
-            
-            document.getElementById('authError').classList.add('hidden');
+            showAuthStatus('', 'none');
+        }
+
+        function showAuthStatus(msg, type = 'error') {
+            const el = document.getElementById('authStatusBox');
+            if (!msg) {
+                el.classList.add('hidden');
+                return;
+            }
+            el.classList.remove('hidden');
+            if (type === 'error') {
+                el.className = "text-xs p-3 rounded-xl text-center text-red-400 bg-red-950/40 border border-red-800/50";
+            } else {
+                el.className = "text-xs p-3 rounded-xl text-center text-emerald-400 bg-emerald-950/40 border border-emerald-800/50";
+            }
+            el.innerText = msg;
         }
 
         function formatLexisId(username) {
@@ -524,65 +575,78 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
-        // Failsafe Form Submission Execution
-        async function handleAuthSubmit(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+        // Main Auth Trigger (No Form Submit, Pure JS)
+        async function handleAuthAction() {
+            const usernameInput = document.getElementById('authUsername').value.trim();
+            const passwordInput = document.getElementById('authPassword').value.trim();
+            const nicknameInput = document.getElementById('authNickname').value.trim();
 
-            const usernameInput = document.getElementById('authUsername').value;
-            const passwordInput = document.getElementById('authPassword').value;
-            const nicknameInput = document.getElementById('authNickname').value;
-            const errEl = document.getElementById('authError');
-            errEl.classList.add('hidden');
+            if (!usernameInput || !passwordInput) {
+                showAuthStatus("Please enter your handle and security key.");
+                return;
+            }
 
             const lexisId = formatLexisId(usernameInput);
             const passHash = await hashPassword(passwordInput);
 
             try {
                 if (isSignup) {
-                    // Check duplicate handle
-                    const { data: existing } = await supabase.from('profiles').select('id').eq('lexis_id', lexisId).maybeSingle();
-                    if (existing) {
-                        errEl.innerText = "Username handle already exists. Please switch to Sign In.";
-                        errEl.classList.remove('hidden');
-                        return false;
+                    // Check handle availability
+                    if (supabase) {
+                        const { data: existing } = await supabase.from('profiles').select('id').eq('lexis_id', lexisId).maybeSingle();
+                        if (existing) {
+                            showAuthStatus("This username handle already exists. Click 'Sign In' instead.");
+                            return;
+                        }
                     }
 
                     const newUserId = crypto.randomUUID();
-                    const displayName = nicknameInput.trim() || usernameInput.trim();
-
-                    const { data: profile, error } = await supabase.from('profiles').insert([{
+                    const displayName = nicknameInput || usernameInput;
+                    const profileData = {
                         id: newUserId,
                         lexis_id: lexisId,
                         display_name: displayName,
                         public_key: passHash
-                    }]).select().single();
+                    };
 
-                    if (error) throw error;
-                    completeUserLogin(profile);
-                } else {
-                    // Validate login
-                    const { data: profile, error } = await supabase.from('profiles').select('*').eq('lexis_id', lexisId).maybeSingle();
-                    if (!profile || profile.public_key !== passHash) {
-                        errEl.innerText = "Incorrect username or security key.";
-                        errEl.classList.remove('hidden');
-                        return false;
+                    if (supabase) {
+                        const { data: profile, error } = await supabase.from('profiles').insert([profileData]).select().single();
+                        if (error) throw error;
+                        completeUserLogin(profile);
+                    } else {
+                        completeUserLogin(profileData);
                     }
-                    completeUserLogin(profile);
+                } else {
+                    // Sign In validation
+                    if (supabase) {
+                        const { data: profile, error } = await supabase.from('profiles').select('*').eq('lexis_id', lexisId).maybeSingle();
+                        if (!profile || profile.public_key !== passHash) {
+                            showAuthStatus("Incorrect username handle or security key.");
+                            return;
+                        }
+                        completeUserLogin(profile);
+                    } else {
+                        // Offline session fallback
+                        completeUserLogin({
+                            id: crypto.randomUUID(),
+                            lexis_id: lexisId,
+                            display_name: usernameInput,
+                            public_key: passHash
+                        });
+                    }
                 }
             } catch (err) {
-                errEl.innerText = err.message || "Authentication error. Please check your network.";
-                errEl.classList.remove('hidden');
+                showAuthStatus(err.message || "Authentication error. Check network connection.");
             }
-            return false;
         }
 
-        async function completeUserLogin(profile) {
+        function completeUserLogin(profile) {
             currentUser = profile;
             localStorage.setItem('lexis_session_user', JSON.stringify(currentUser));
-            document.getElementById('authModal').classList.add('hidden');
+            
+            // Hide Auth Screen & Reveal Workspace
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('mainWorkspace').classList.remove('hidden');
 
             if (currentUser.is_banned) {
                 showBanModal(currentUser.ban_reason);
@@ -593,6 +657,7 @@
             document.getElementById('myLexisId').innerText = currentUser.lexis_id;
             document.getElementById('userAvatar').innerText = currentUser.display_name.substring(0, 2).toUpperCase();
 
+            // Presence heartbeat loop
             setInterval(() => sendPresenceHeartbeat(), 20000);
             sendPresenceHeartbeat();
 
@@ -632,19 +697,21 @@
             const text = document.getElementById('appealInput').value.trim();
             if (!text || !currentUser) return;
 
-            await supabase.from('security_logs').insert([{
-                user_id: currentUser.id,
-                device_fingerprint: deviceFingerprint || 'WEB_CLIENT',
-                action_taken: 'banned',
-                ai_reason: 'User submitted unblock review request',
-                appeal_message: text,
-                status: 'appealed'
-            }]);
+            if (supabase) {
+                await supabase.from('security_logs').insert([{
+                    user_id: currentUser.id,
+                    device_fingerprint: deviceFingerprint || 'WEB_CLIENT',
+                    action_taken: 'banned',
+                    ai_reason: 'User submitted unblock review request',
+                    appeal_message: text,
+                    status: 'appealed'
+                }]);
+            }
 
             document.getElementById('appealStatus').classList.remove('hidden');
         }
 
-        // Sidebar Navigation
+        // Sidebar Navigation Tabs
         function switchSidebarTab(tab) {
             activeSidebarTab = tab;
             ['Chats', 'Contacts', 'Groups'].forEach(t => {
@@ -679,13 +746,20 @@
             container.innerHTML = '';
 
             if (activeSidebarTab === 'chats' || activeSidebarTab === 'contacts') {
-                const { data: contacts } = await supabase
-                    .from('contacts')
-                    .select('id, custom_name, profiles:contact_id(id, lexis_id, display_name)')
-                    .eq('user_id', currentUser.id);
+                let contacts = [];
+                if (supabase) {
+                    const { data } = await supabase
+                        .from('contacts')
+                        .select('id, custom_name, profiles:contact_id(id, lexis_id, display_name)')
+                        .eq('user_id', currentUser.id);
+                    contacts = data || [];
+                }
 
-                const localContacts = await db.contacts.toArray();
-                const aliasMap = new Map(localContacts.map(c => [c.id, c.custom_alias]));
+                let aliasMap = new Map();
+                if (db) {
+                    const localContacts = await db.contacts.toArray();
+                    aliasMap = new Map(localContacts.map(c => [c.id, c.custom_alias]));
+                }
 
                 (contacts || []).forEach(({ profiles: contact, custom_name }) => {
                     if (!contact) return;
@@ -709,26 +783,28 @@
                     container.appendChild(div);
                 });
             } else if (activeSidebarTab === 'groups') {
-                const groups = await db.groups.toArray();
-                groups.forEach(group => {
-                    const div = document.createElement('div');
-                    div.className = "chat-sidebar-item p-3 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center transition";
-                    div.setAttribute('data-name', group.name);
-                    div.setAttribute('data-handle', 'group');
-                    div.innerHTML = `
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-800/50 text-emerald-400 font-bold flex items-center justify-center text-xs shadow">
-                                <i class="fa-solid fa-users"></i>
+                if (db) {
+                    const groups = await db.groups.toArray();
+                    groups.forEach(group => {
+                        const div = document.createElement('div');
+                        div.className = "chat-sidebar-item p-3 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center transition";
+                        div.setAttribute('data-name', group.name);
+                        div.setAttribute('data-handle', 'group');
+                        div.innerHTML = `
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-800/50 text-emerald-400 font-bold flex items-center justify-center text-xs shadow">
+                                    <i class="fa-solid fa-users"></i>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-bold text-slate-200">${group.name}</div>
+                                    <div class="text-[10px] text-slate-400">${group.memberIds.length} Members</div>
+                                </div>
                             </div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-200">${group.name}</div>
-                                <div class="text-[10px] text-slate-400">${group.memberIds.length} Members</div>
-                            </div>
-                        </div>
-                    `;
-                    div.onclick = () => selectActiveChat('group', group.id, group.name);
-                    container.appendChild(div);
-                });
+                        `;
+                        div.onclick = () => selectActiveChat('group', group.id, group.name);
+                        container.appendChild(div);
+                    });
+                }
             }
         }
 
@@ -763,7 +839,7 @@
         setInterval(updatePresenceStatus, 6000);
 
         async function renderActiveMessages() {
-            if (!activeChatTarget) return;
+            if (!activeChatTarget || !db) return;
             const chatId = activeChatTarget.type === 'direct' 
                 ? [currentUser.id, activeChatTarget.id].sort().join('_')
                 : activeChatTarget.id;
@@ -806,14 +882,10 @@
             return div.innerHTML;
         }
 
-        async function handleSendMessage(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+        async function handleSendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            if (!text || !activeChatTarget) return false;
+            if (!text || !activeChatTarget) return;
 
             const nonce = crypto.randomUUID();
             const timestamp = Date.now();
@@ -823,34 +895,39 @@
             
             const idempotencyKey = `${currentUser.id}_${timestamp}_${nonce}`;
 
-            await db.messages.put({
-                idempotency_key: idempotencyKey,
-                chatId,
-                senderId: currentUser.id,
-                receiverId: activeChatTarget.id,
-                text,
-                timestamp,
-                status: 'sending'
-            });
+            if (db) {
+                await db.messages.put({
+                    idempotency_key: idempotencyKey,
+                    chatId,
+                    senderId: currentUser.id,
+                    receiverId: activeChatTarget.id,
+                    text,
+                    timestamp,
+                    status: 'sending'
+                });
+            }
 
             input.value = '';
             renderActiveMessages();
 
-            const { error } = await supabase.from('message_buffer').insert([{
-                idempotency_key: idempotencyKey,
-                sender_id: currentUser.id,
-                receiver_id: activeChatTarget.id,
-                encrypted_payload: text
-            }]);
+            if (supabase) {
+                const { error } = await supabase.from('message_buffer').insert([{
+                    idempotency_key: idempotencyKey,
+                    sender_id: currentUser.id,
+                    receiver_id: activeChatTarget.id,
+                    encrypted_payload: text
+                }]);
 
-            if (!error) {
-                await db.messages.update(idempotencyKey, { status: 'sent' });
-                renderActiveMessages();
+                if (!error && db) {
+                    await db.messages.update(idempotencyKey, { status: 'sent' });
+                    renderActiveMessages();
+                }
             }
-            return false;
         }
 
         async function listenToRealtimeInbox() {
+            if (!supabase) return;
+
             const { data } = await supabase.from('message_buffer').select('*').eq('receiver_id', currentUser.id);
             if (data && data.length > 0) {
                 for (const item of data) {
@@ -868,24 +945,28 @@
         async function processIncomingMessage(item) {
             const chatId = [item.sender_id, item.receiver_id].sort().join('_');
 
-            await db.messages.put({
-                idempotency_key: item.idempotency_key,
-                chatId,
-                senderId: item.sender_id,
-                receiverId: item.receiver_id,
-                text: item.encrypted_payload,
-                timestamp: new Date(item.created_at).getTime(),
-                status: 'delivered'
-            });
+            if (db) {
+                await db.messages.put({
+                    idempotency_key: item.idempotency_key,
+                    chatId,
+                    senderId: item.sender_id,
+                    receiverId: item.receiver_id,
+                    text: item.encrypted_payload,
+                    timestamp: new Date(item.created_at).getTime(),
+                    status: 'delivered'
+                });
+            }
 
-            await supabase.from('message_buffer').delete().eq('id', item.id);
+            if (supabase) {
+                await supabase.from('message_buffer').delete().eq('id', item.id);
+            }
 
             if (activeChatTarget && activeChatTarget.id === item.sender_id) {
                 renderActiveMessages();
             }
         }
 
-        // Voice Notes
+        // Voice Recording Routine
         async function toggleVoiceRecording() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -927,16 +1008,18 @@
                         ? [currentUser.id, activeChatTarget.id].sort().join('_')
                         : activeChatTarget.id;
 
-                    await db.messages.put({
-                        idempotency_key: `${currentUser.id}_${timestamp}_${nonce}`,
-                        chatId,
-                        senderId: currentUser.id,
-                        receiverId: activeChatTarget.id,
-                        text: '🎤 Voice Note',
-                        audioUrl,
-                        timestamp,
-                        status: 'sent'
-                    });
+                    if (db) {
+                        await db.messages.put({
+                            idempotency_key: `${currentUser.id}_${timestamp}_${nonce}`,
+                            chatId,
+                            senderId: currentUser.id,
+                            receiverId: activeChatTarget.id,
+                            text: '🎤 Voice Note',
+                            audioUrl,
+                            timestamp,
+                            status: 'sent'
+                        });
+                    }
                     renderActiveMessages();
                 };
                 reader.readAsDataURL(audioBlob);
@@ -959,29 +1042,35 @@
                     ? [currentUser.id, activeChatTarget.id].sort().join('_')
                     : activeChatTarget.id;
 
-                await db.messages.put({
-                    idempotency_key: `${currentUser.id}_${timestamp}_${nonce}`,
-                    chatId,
-                    senderId: currentUser.id,
-                    receiverId: activeChatTarget.id,
-                    text: '📷 Photo',
-                    mediaUrl,
-                    timestamp,
-                    status: 'sent'
-                });
+                if (db) {
+                    await db.messages.put({
+                        idempotency_key: `${currentUser.id}_${timestamp}_${nonce}`,
+                        chatId,
+                        senderId: currentUser.id,
+                        receiverId: activeChatTarget.id,
+                        text: '📷 Photo',
+                        mediaUrl,
+                        timestamp,
+                        status: 'sent'
+                    });
+                }
                 renderActiveMessages();
             };
             reader.readAsDataURL(file);
         }
 
-        // Modals
+        // Modals Logic
         function openAddContactModal() { document.getElementById('addContactModal').classList.remove('hidden'); }
         function openEditContactAliasModal() { document.getElementById('editAliasModal').classList.remove('hidden'); }
         async function openCreateGroupModal() {
-            const { data: contacts } = await supabase.from('contacts').select('id, custom_name, profiles:contact_id(id, lexis_id, display_name)').eq('user_id', currentUser.id);
+            let contacts = [];
+            if (supabase) {
+                const { data } = await supabase.from('contacts').select('id, custom_name, profiles:contact_id(id, lexis_id, display_name)').eq('user_id', currentUser.id);
+                contacts = data || [];
+            }
             const container = document.getElementById('groupMembersChecklist');
             container.innerHTML = '';
-            (contacts || []).forEach(({ profiles: c, custom_name }) => {
+            contacts.forEach(({ profiles: c, custom_name }) => {
                 if (!c) return;
                 const div = document.createElement('label');
                 div.className = "flex items-center space-x-2 text-xs text-slate-200 p-1.5 hover:bg-slate-900 rounded cursor-pointer";
@@ -999,17 +1088,21 @@
             if (!handleInput) return;
 
             const formattedHandle = formatLexisId(handleInput);
-            const { data: profile } = await supabase.from('profiles').select('*').eq('lexis_id', formattedHandle).maybeSingle();
+            if (supabase) {
+                const { data: profile } = await supabase.from('profiles').select('*').eq('lexis_id', formattedHandle).maybeSingle();
 
-            if (!profile) return alert("User handle not found.");
+                if (!profile) return alert("User handle not found.");
 
-            await supabase.from('contacts').upsert([{
-                user_id: currentUser.id,
-                contact_id: profile.id,
-                custom_name: customAlias || profile.display_name
-            }]);
+                await supabase.from('contacts').upsert([{
+                    user_id: currentUser.id,
+                    contact_id: profile.id,
+                    custom_name: customAlias || profile.display_name
+                }]);
 
-            await db.contacts.put({ id: profile.id, lexis_id: profile.lexis_id, display_name: profile.display_name, custom_alias: customAlias });
+                if (db) {
+                    await db.contacts.put({ id: profile.id, lexis_id: profile.lexis_id, display_name: profile.display_name, custom_alias: customAlias });
+                }
+            }
             closeModal('addContactModal');
             loadSidebarList();
         }
@@ -1018,8 +1111,12 @@
             const alias = document.getElementById('editAliasInput').value;
             if (!activeChatTarget || !alias) return;
 
-            await supabase.from('contacts').update({ custom_name: alias }).eq('user_id', currentUser.id).eq('contact_id', activeChatTarget.id);
-            await db.contacts.update(activeChatTarget.id, { custom_alias: alias });
+            if (supabase) {
+                await supabase.from('contacts').update({ custom_name: alias }).eq('user_id', currentUser.id).eq('contact_id', activeChatTarget.id);
+            }
+            if (db) {
+                await db.contacts.update(activeChatTarget.id, { custom_alias: alias });
+            }
 
             activeChatTarget.name = alias;
             document.getElementById('activeName').innerText = alias;
@@ -1035,13 +1132,15 @@
             memberIds.push(currentUser.id);
 
             const groupId = 'group_' + crypto.randomUUID();
-            await db.groups.put({
-                id: groupId,
-                name,
-                adminIds: [currentUser.id],
-                memberIds,
-                createdAt: Date.now()
-            });
+            if (db) {
+                await db.groups.put({
+                    id: groupId,
+                    name,
+                    adminIds: [currentUser.id],
+                    memberIds,
+                    createdAt: Date.now()
+                });
+            }
 
             closeModal('createGroupModal');
             switchSidebarTab('groups');
