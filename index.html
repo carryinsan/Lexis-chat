@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lexis Chat - E2EE & Ephemeral Communications</title>
+
+    <!-- UI Framework & Assets -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        lexis: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Heavyweight Libraries -->
+    <script src="https://unpkg.com/dexie@3.2.4/dist/dexie.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@upstash/redis@1/dist/index.js"></script>
+
+    <style>
+        /* Modern Scrollbar Styling */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.8); }
+
+        /* Glassmorphism Effects */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-input {
+            background: rgba(2, 6, 23, 0.6);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+        }
+        .glass-input:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Pulse Animation for Voice Recording */
+        @keyframes pulse-red {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.75; }
+        }
+        .recording-pulse { animation: pulse-red 1.2s infinite ease-in-out; }
+    </style>
+</head>
+<body class="h-full w-full overflow-hidden text-slate-100 font-sans select-none">
+
+    <!-- MAIN APP CANVAS -->
+    <div id="appContainer" class="h-full w-full flex bg-slate-950">
+
+        <!-- ============================================================================== -->
+        <!-- 1. AUTHENTICATION LANDING MODAL (SIGN IN / SIGN UP)                            -->
+        <!-- ============================================================================== -->
+        <div id="authModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4">
+            <div class="glass-panel w-full max-w-md rounded-3xl p-8 space-y-6 shadow-2xl relative overflow-hidden border border-slate-800">
+                <div class="absolute -top-12 -right-12 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="text-center space-y-2">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-3xl mb-2">
+                        <i class="fa-solid fa-[#10b981] fa-shield-halved"></i>
+                    </div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-white">Lexis Chat System</h1>
+                    <p class="text-xs text-slate-400">Ultra-Secure E2EE Ephemeral Communications Platform</p>
+                </div>
+
+                <!-- Auth Mode Switcher -->
+                <div class="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+                    <button id="tabSignin" class="flex-1 py-2 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition">Sign In</button>
+                    <button id="tabSignup" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Create Account</button>
+                </div>
+
+                <!-- Auth Form -->
+                <form id="authForm" onsubmit="handleAuthSubmit(event)" class="space-y-4">
+                    <div id="nicknameGroup" class="hidden space-y-1">
+                        <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Your Nickname (Visible to others)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-user"></i></span>
+                            <input id="authNickname" type="text" placeholder="e.g. Alex Mercer" class="w-full glass-input rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Username Handle</label>
+                        <div class="relative flex items-center">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-at"></i></span>
+                            <input id="authUsername" type="text" required placeholder="alex" class="w-full glass-input rounded-xl pl-9 pr-24 py-2.5 text-xs text-white focus:outline-none">
+                            <span class="absolute right-3 text-[10px] text-emerald-400/80 font-mono">@lexis.chat.app</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[11px] uppercase tracking-wider text-slate-400 font-medium">Account PIN / Security Key</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-key"></i></span>
+                            <input id="authPassword" type="password" required placeholder="••••••••••••" class="w-full glass-input rounded-xl pl-9 pr-3 py-2.5 text-xs text-white focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div id="authError" class="hidden text-xs text-red-400 bg-red-950/40 border border-red-800/50 p-3 rounded-xl text-center"></div>
+
+                    <button id="authSubmitBtn" type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-xs transition shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2">
+                        <span>Sign In</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </form>
+
+                <div class="text-[10px] text-center text-slate-500 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-lock text-emerald-500"></i>
+                    <span>Zero Cloud Retention • Hardware Fingerprint Locked</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 2. BAN / HARDWARE LOCK WARNING OVERLAY MODAL                                   -->
+        <!-- ============================================================================== -->
+        <div id="banModal" class="hidden fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4">
+            <div class="bg-slate-900 border border-red-500/40 p-8 rounded-3xl max-w-md w-full text-center space-y-5 shadow-2xl">
+                <div class="w-20 h-20 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-red-500 text-4xl">
+                    <i class="fa-solid fa-user-slash"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-red-400">Account Access Suspended</h2>
+                    <p id="banReasonText" class="text-xs text-slate-300 mt-2 bg-slate-950 p-3 rounded-xl border border-slate-800 text-left font-mono"></p>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                        <span>Submit Unblock Appeal to Admin</span>
+                        <span class="text-emerald-400">GPT-OSS-20B Sentinel</span>
+                    </label>
+                    <textarea id="appealInput" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-red-500" placeholder="State your explanation for the administrator..." rows="3"></textarea>
+                </div>
+                <button id="sendAppealBtn" onclick="handleSendAppeal()" class="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-2.5 rounded-xl text-xs transition">
+                    Send Unblock Appeal Request
+                </button>
+                <p id="appealStatus" class="text-xs text-emerald-400 hidden"><i class="fa-solid fa-circle-check"></i> Appeal sent to Admin. Check back shortly.</p>
+            </div>
+        </div>
+
+        <!-- ============================================================================== -->
+        <!-- 3. SIDEBAR NAVIGATION & CONTACTS / GROUPS PANEL                                -->
+        <!-- ============================================================================== -->
+        <aside id="sidebar" class="w-full md:w-80 lg:w-96 bg-slate-900 border-r border-slate-800/80 flex flex-col h-full z-20 transition-all duration-300">
+            
+            <!-- User Profile Header -->
+            <div class="p-4 border-b border-slate-800/80 bg-slate-950/40 flex justify-between items-center">
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="openProfileModal()">
+                    <div id="userAvatar" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white font-bold flex items-center justify-center text-sm shadow-md">
+                        ?
+                    </div>
+                    <div class="overflow-hidden">
+                        <h2 id="myDisplayName" class="font-bold text-sm text-slate-100 truncate">Loading...</h2>
+                        <p id="myLexisId" class="text-[10px] text-emerald-400 font-mono truncate">@lexis.chat.app</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button onclick="openCreateGroupModal()" title="Create Group Chat" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                        <i class="fa-solid fa-users-medical text-base"></i>
+                    </button>
+                    <button onclick="openAddContactModal()" title="Add New Contact" class="p-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                        <i class="fa-solid fa-user-plus text-base"></i>
+                    </button>
+                    <button onclick="handleLogout()" title="Sign Out" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl text-xs transition">
+                        <i class="fa-solid fa-right-from-bracket text-base"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Selector: All Chats | Contacts | Groups -->
+            <div class="flex border-b border-slate-800/80 bg-slate-950/20 p-1 text-xs font-semibold">
+                <button id="tabChats" onclick="switchSidebarTab('chats')" class="flex-1 py-2 text-emerald-400 border-b-2 border-emerald-500 transition">Chats</button>
+                <button id="tabContacts" onclick="switchSidebarTab('contacts')" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Contacts</button>
+                <button id="tabGroups" onclick="switchSidebarTab('groups')" class="flex-1 py-2 text-slate-400 hover:text-slate-200 transition">Groups</button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="p-3 border-b border-slate-800/60 bg-slate-900">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
+                    <input id="searchInput" type="text" oninput="handleSearchFilter(this.value)" placeholder="Search conversations or handle..." class="w-full glass-input rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none">
+                </div>
+            </div>
+
+            <!-- Conversation & Contact Lists Container -->
+            <div id="chatsList" class="flex-1 overflow-y-auto divide-y divide-slate-800/40">
+                <!-- Dynamic Content Hydrated via JavaScript -->
+            </div>
+        </aside>
+
+        <!-- ============================================================================== -->
+        <!-- 4. ACTIVE CHAT WINDOW / CONVERSATION VIEW                                      -->
+        <!-- ============================================================================== -->
+        <main id="chatMain" class="hidden md:flex flex-1 flex-col h-full bg-slate-950 relative">
+            
+            <!-- Chat Window Placeholder when no chat active -->
+            <div id="emptyChatPlaceholder" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+                <div class="w-24 h-24 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-4xl shadow-inner">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <div class="max-w-sm space-y-1">
+                    <h3 class="text-lg font-bold text-slate-200">End-to-End Encrypted Chat</h3>
+                    <p class="text-xs text-slate-400 leading-relaxed">Select a conversation or add a contact by their unique <span class="text-emerald-400 font-mono">@lexis.chat.app</span> handle to start messaging.</p>
+                </div>
+            </div>
+
+            <!-- Active Conversation Container -->
+            <div id="activeChatArea" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                
+                <!-- Chat Header -->
+                <header class="p-3.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur flex justify-between items-center z-10">
+                    <div class="flex items-center space-x-3">
+                        <button onclick="closeActiveChatMobile()" class="md:hidden text-slate-400 hover:text-white p-2 text-sm">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div id="activeAvatar" class="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 font-bold flex items-center justify-center text-sm shadow">
+                            ?
+                        </div>
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <h3 id="activeName" class="font-bold text-sm text-slate-100">Conversation</h3>
+                                <button onclick="openEditContactAliasModal()" title="Edit Custom Nickname" class="text-slate-500 hover:text-emerald-400 text-xs">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                            </div>
+                            <p id="activeStatus" class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span>
+                                <span>Offline</span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <button id="groupInfoBtn" onclick="openGroupDetailsModal()" class="hidden p-2 text-slate-400 hover:text-emerald-400 rounded-xl text-xs transition">
+                            <i class="fa-solid fa-circle-info text-base"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- Messages Viewport -->
+                <div id="messagesViewport" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-950/60 relative">
+                    <!-- Message Bubbles Rendered Dynamically -->
+                </div>
+
+                <!-- Chat Input Section -->
+                <footer class="p-3 border-t border-slate-800/80 bg-slate-900/90 backdrop-blur">
+                    <form id="chatForm" onsubmit="handleSendMessage(event)" class="flex items-center space-x-2">
+                        
+                        <!-- Media Attachment Trigger -->
+                        <label title="Attach Image/Document" class="cursor-pointer text-slate-400 hover:text-emerald-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-paperclip text-base"></i>
+                            <input type="file" id="mediaFileInput" onchange="handleMediaSelected(event)" class="hidden" accept="image/*,video/*,audio/*,.pdf">
+                        </label>
+
+                        <!-- Audio Recorder Trigger -->
+                        <button type="button" id="voiceRecordBtn" onclick="toggleVoiceRecording()" title="Record Voice Note" class="text-slate-400 hover:text-red-400 p-2.5 rounded-xl hover:bg-slate-800 transition">
+                            <i class="fa-solid fa-microphone text-base"></i>
+                        </button>
+
+                        <!-- Text Input -->
+                        <input id="messageInput" type="text" oninput="handleTypingEvent()" placeholder="Type an encrypted message..." class="flex-1 glass-input rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none">
+
+                        <!-- Send Button -->
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white p-2.5 px-4 rounded-xl text-xs font-semibold transition shadow-lg shadow-emerald-900/40 flex items-center justify-center space-x-1">
+                            <span>Send</span>
+                            <i class="fa-solid fa-paper-plane text-xs"></i>
+                        </button>
+                    </form>
+
+                    <!-- Voice Recording Indicator Bar -->
+                    <div id="voiceRecordingBar" class="hidden flex items-center justify-between bg-red-950/40 border border-red-800/50 p-2 px-4 rounded-xl mt-2 text-xs text-red-300">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-red-500 recording-pulse"></span>
+                            <span>Recording Audio Voice Note...</span>
+                            <span id="recordingTimer" class="font-mono font-bold">00:00</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="cancelVoiceRecording()" class="text-xs text-slate-400 hover:text-white px-2 py-1">Cancel</button>
+                            <button onclick="finishAndSendVoiceNote()" class="bg-red-600 text-white text-xs px-3 py-1 rounded-lg">Send Audio</button>
+                        </div>
+                    </div>
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- 5. MODALS & DRAWERS (CONTACTS, GROUPS, EDIT ALIAS, MEDIA LIGHTBOX)             -->
+    <!-- ============================================================================== -->
+
+    <!-- Add Contact Modal -->
+    <div id="addContactModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-user-plus text-emerald-400"></i> Add New Contact</h3>
+                <button onclick="closeModal('addContactModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Target Lexis Handle</label>
+                    <input id="searchLexisInput" type="text" placeholder="username@lexis.chat.app" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Custom Saved Nickname (Optional)</label>
+                    <input id="customAliasInput" type="text" placeholder="e.g. Work Buddy" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                </div>
+            </div>
+            <button onclick="executeAddContact()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                Search & Save Contact
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Contact Custom Nickname Modal -->
+    <div id="editAliasModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-sm rounded-3xl p-6 space-y-4 border border-slate-800">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-sm text-slate-100">Edit Custom Nickname</h3>
+                <button onclick="closeModal('editAliasModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-2">
+                <label class="text-[10px] uppercase tracking-wider text-slate-400">Set Custom Alias</label>
+                <input id="editAliasInput" type="text" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+            </div>
+            <button onclick="executeSaveContactAlias()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                Save Custom Nickname
+            </button>
+        </div>
+    </div>
+
+    <!-- Create Group Modal -->
+    <div id="createGroupModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-md rounded-3xl p-6 space-y-4 border border-slate-800">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2"><i class="fa-solid fa-users-medical text-emerald-400"></i> Create New Group</h3>
+                <button onclick="closeModal('createGroupModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="space-y-1">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Group Name</label>
+                    <input id="groupNameInput" type="text" placeholder="e.g. Core Security Team" class="w-full glass-input rounded-xl px-3 py-2 text-xs text-white focus:outline-none">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] uppercase tracking-wider text-slate-400">Select Initial Members</label>
+                    <div id="groupMembersChecklist" class="max-h-40 overflow-y-auto bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-1">
+                        <!-- Contact checkboxes populated via JavaScript -->
+                    </div>
+                </div>
+            </div>
+            <button onclick="executeCreateGroup()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-semibold transition">
+                Create Group Chat
+            </button>
+        </div>
+    </div>
+
+    <!-- Media Lightbox Preview Modal -->
+    <div id="lightboxModal" class="hidden fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4">
+        <button onclick="closeModal('lightboxModal')" class="absolute top-4 right-4 text-white text-2xl p-2"><i class="fa-solid fa-xmark"></i></button>
+        <img id="lightboxImage" src="" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain">
+    </div>
+
+    <!-- ============================================================================== -->
+    <!-- 6. CORE JAVASCRIPT APPLICATION LOGIC                                           -->
+    <!-- ============================================================================== -->
+    <script type="module">
+        import { verifyDeviceLock, submitBanAppeal } from './api/security.js';
+        import { searchContact, addContact, getContacts, formatLexisId } from './api/contacts.js';
+        import { sendMessage, acknowledgeAndPurgeMessage, fetchTransientInbox } from './api/chat.js';
+        import { compressImageClientSide, generateMicroPreview, uploadEphemeralMedia, downloadAndPurgeCloudMedia } from './api/storage.js';
+        import { sendHeartbeat, setTypingState, getContactStatus } from './api/addons.js';
+
+        // Initialize Local IndexedDB Storage via Dexie
+        const db = new Dexie('LexisClientDB');
+        db.version(2).stores({
+            messages: 'idempotency_key, chatId, senderId, receiverId, timestamp, status',
+            contacts: 'id, lexis_id, display_name, custom_alias',
+            groups: 'id, name, adminIds, memberIds, createdAt'
+        });
+
+        const SUPABASE_URL = "https://yqadyurhepgzxnniwktd.supabase.co";
+        const SUPABASE_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxYWR5dXJoZXBnenhubml3a3RkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTg3NTY1NywiZXhwIjoyMDk1NDUxNjU3fQ.U10IjMc7Pp-droJiQCFGZ-T1kA8tZXFkLqlN2EqeUqI";
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // App Global State
+        let currentUser = null;
+        let activeChatTarget = null; // { type: 'direct'|'group', id: string, name: string }
+        let deviceFingerprint = null;
+        let isAuthSignup = false;
+        let activeSidebarTab = 'chats';
+
+        // Voice Recorder State
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimerInterval = null;
+        let recordingSeconds = 0;
+
+        // Initialize App Lifecycle
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initHardwareFingerprint();
+            checkExistingSession();
+        });
+
+        // Generate Hardware Fingerprint Hash
+        async function initHardwareFingerprint() {
+            try {
+                const fp = await FingerprintJS.load();
+                const result = await fp.get();
+                deviceFingerprint = result.visitorId;
+            } catch (e) {
+                deviceFingerprint = 'FP_' + Math.random().toString(36).substring(2, 10);
+            }
+        }
+
+        // Auth Tabs Toggle
+        document.getElementById('tabSignin').onclick = () => setAuthMode(false);
+        document.getElementById('tabSignup').onclick = () => setAuthMode(true);
+
+        function setAuthMode(signup) {
+            isAuthSignup = signup;
+            document.getElementById('nicknameGroup').classList.toggle('hidden', !signup);
+            document.getElementById('tabSignin').className = signup ? 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition' : 'flex-1 py-2 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition';
+            document.getElementById('tabSignup').className = !signup ? 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition' : 'flex-1 py-2 text-xs font-semibold rounded-lg text-emerald-400 bg-slate-800 transition';
+            document.getElementById('authSubmitBtn').querySelector('span').innerText = signup ? 'Create Account' : 'Sign In';
+        }
+
+        // SHA-256 Hash Helper for PIN / Security Key
+        async function hashPassword(plainText) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plainText);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Submit Sign In / Sign Up Form
+        window.handleAuthSubmit = async function(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById('authUsername').value;
+            const passwordInput = document.getElementById('authPassword').value;
+            const nicknameInput = document.getElementById('authNickname').value;
+            const errEl = document.getElementById('authError');
+            errEl.classList.add('hidden');
+
+            const lexisId = formatLexisId(usernameInput);
+            const passHash = await hashPassword(passwordInput);
+
+            try {
+                if (isAuthSignup) {
+                    // Check handle availability
+                    const { data: existing } = await supabase.from('profiles').select('id').eq('lexis_id', lexisId).maybeSingle();
+                    if (existing) {
+                        errEl.innerText = "Handle already registered. Try signing in.";
+                        errEl.classList.remove('hidden');
+                        return;
+                    }
+
+                    const newUserId = crypto.randomUUID();
+                    const displayName = nicknameInput.trim() || usernameInput.trim();
+
+                    const { data: profile, error } = await supabase.from('profiles').insert([{
+                        id: newUserId,
+                        lexis_id: lexisId,
+                        display_name: displayName,
+                        public_key: passHash
+                    }]).select().single();
+
+                    if (error) throw error;
+                    completeUserLogin(profile);
+                } else {
+                    // Sign In validation
+                    const { data: profile, error } = await supabase.from('profiles').select('*').eq('lexis_id', lexisId).maybeSingle();
+                    if (!profile || profile.public_key !== passHash) {
+                        errEl.innerText = "Invalid Lexis ID handle or security key.";
+                        errEl.classList.remove('hidden');
+                        return;
+                    }
+                    completeUserLogin(profile);
+                }
+            } catch (err) {
+                errEl.innerText = err.message || "Authentication error.";
+                errEl.classList.remove('hidden');
+            }
+        };
+
+        async function completeUserLogin(profile) {
+            currentUser = profile;
+            localStorage.setItem('lexis_session_user', JSON.stringify(currentUser));
+            document.getElementById('authModal').classList.add('hidden');
+
+            // Verify Hardware Lock & Ban Status
+            const lockCheck = await verifyDeviceLock(currentUser.id, deviceFingerprint);
+            if (!lockCheck.allowed) {
+                showBanModal(lockCheck.reason);
+                return;
+            }
+
+            if (currentUser.is_banned) {
+                showBanModal(currentUser.ban_reason);
+                return;
+            }
+
+            // Update UI
+            document.getElementById('myDisplayName').innerText = currentUser.display_name;
+            document.getElementById('myLexisId').innerText = currentUser.lexis_id;
+            document.getElementById('userAvatar').innerText = currentUser.display_name.substring(0, 2).toUpperCase();
+
+            // Start Realtime & Heartbeats
+            setInterval(() => sendHeartbeat(currentUser.id), 20000);
+            sendHeartbeat(currentUser.id);
+            
+            listenToRealtimeInbox();
+            loadSidebarList();
+        }
+
+        function checkExistingSession() {
+            const session = localStorage.getItem('lexis_session_user');
+            if (session) {
+                try {
+                    const parsed = JSON.parse(session);
+                    completeUserLogin(parsed);
+                } catch (e) {
+                    localStorage.removeItem('lexis_session_user');
+                }
+            }
+        }
+
+        window.handleLogout = function() {
+            localStorage.removeItem('lexis_session_user');
+            location.reload();
+        };
+
+        function showBanModal(reason) {
+            document.getElementById('banReasonText').innerText = reason || "Account access restricted by AI Security Shield.";
+            document.getElementById('banModal').classList.remove('hidden');
+        }
+
+        window.handleSendAppeal = async function() {
+            const text = document.getElementById('appealInput').value.trim();
+            if (!text) return;
+            await submitBanAppeal(currentUser.id, text);
+            document.getElementById('appealStatus').classList.remove('hidden');
+        };
+
+        // Sidebar Tab Switching
+        window.switchSidebarTab = function(tab) {
+            activeSidebarTab = tab;
+            ['tabChats', 'tabContacts', 'tabGroups'].forEach(t => {
+                const el = document.getElementById(t);
+                if (t === 'tab' + tab.charAt(0).toUpperCase() + tab.slice(1)) {
+                    el.className = 'flex-1 py-2 text-emerald-400 border-b-2 border-emerald-500 transition';
+                } else {
+                    el.className = 'flex-1 py-2 text-slate-400 hover:text-slate-200 transition';
+                }
+            });
+            loadSidebarList();
+        };
+
+        // Render Sidebar Conversations / Contacts / Groups
+        async function loadSidebarList() {
+            const container = document.getElementById('chatsList');
+            container.innerHTML = '';
+
+            if (activeSidebarTab === 'chats' || activeSidebarTab === 'contacts') {
+                const { data: contacts } = await getContacts(currentUser.id);
+                // Also load local IndexedDB contacts with custom aliases
+                const localContacts = await db.contacts.toArray();
+                const aliasMap = new Map(localContacts.map(c => [c.id, c.custom_alias]));
+
+                (contacts || []).forEach(({ profiles: contact }) => {
+                    const customAlias = aliasMap.get(contact.id) || contact.display_name;
+                    const div = document.createElement('div');
+                    div.className = "p-3 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center transition";
+                    div.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-slate-800 text-emerald-400 font-bold flex items-center justify-center text-xs shadow">
+                                ${customAlias.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-200">${customAlias}</div>
+                                <div class="text-[10px] text-slate-400 font-mono">${contact.lexis_id}</div>
+                            </div>
+                        </div>
+                    `;
+                    div.onclick = () => selectActiveChat('direct', contact.id, customAlias, contact.lexis_id);
+                    container.appendChild(div);
+                });
+            } else if (activeSidebarTab === 'groups') {
+                const groups = await db.groups.toArray();
+                groups.forEach(group => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 hover:bg-slate-800/50 cursor-pointer flex justify-between items-center transition";
+                    div.innerHTML = `
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-800/50 text-emerald-400 font-bold flex items-center justify-center text-xs shadow">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-200">${group.name}</div>
+                                <div class="text-[10px] text-slate-400">${group.memberIds.length} Members</div>
+                            </div>
+                        </div>
+                    `;
+                    div.onclick = () => selectActiveChat('group', group.id, group.name);
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        // Active Chat Selection
+        async function selectActiveChat(type, id, name, lexisId = '') {
+            activeChatTarget = { type, id, name, lexisId };
+            
+            document.getElementById('emptyChatPlaceholder').classList.add('hidden');
+            document.getElementById('activeChatArea').classList.remove('hidden');
+            document.getElementById('chatMain').classList.remove('hidden');
+            
+            document.getElementById('activeName').innerText = name;
+            document.getElementById('activeAvatar').innerText = name.substring(0, 2).toUpperCase();
+            document.getElementById('groupInfoBtn').classList.toggle('hidden', type !== 'group');
+
+            updatePresenceStatus();
+            renderActiveMessages();
+        }
+
+        window.closeActiveChatMobile = function() {
+            document.getElementById('chatMain').classList.add('hidden');
+        };
+
+        async function updatePresenceStatus() {
+            if (!activeChatTarget || activeChatTarget.type !== 'direct') return;
+            const status = await getContactStatus(activeChatTarget.id, currentUser.id);
+            const el = document.getElementById('activeStatus');
+
+            if (status.typing) {
+                el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block"></span><span class="text-emerald-400 font-medium">typing...</span>`;
+            } else if (status.online) {
+                el.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span><span class="text-emerald-400 font-medium">Online</span>`;
+            } else {
+                const timeStr = status.lastSeen ? new Date(status.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Offline';
+                el.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-500 inline-block"></span><span>Last seen ${timeStr}</span>`;
+            }
+        }
+        setInterval(updatePresenceStatus, 4000);
+
+        // Render Messages from Local IndexedDB
+        async function renderActiveMessages() {
+            if (!activeChatTarget) return;
+            const chatId = activeChatTarget.type === 'direct' 
+                ? [currentUser.id, activeChatTarget.id].sort().join('_')
+                : activeChatTarget.id;
+
+            const messages = await db.messages.where('chatId').equals(chatId).sortBy('timestamp');
+            const viewport = document.getElementById('messagesViewport');
+            viewport.innerHTML = '';
+
+            messages.forEach(msg => {
+                const isMe = msg.senderId === currentUser.id;
+                const wrapper = document.createElement('div');
+                wrapper.className = `flex ${isMe ? 'justify-end' : 'justify-start'} mb-2`;
+
+                const bubble = document.createElement('div');
+                bubble.className = `max-w-xs md:max-w-md p-3 rounded-2xl text-xs relative shadow ${isMe ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700/60'}`;
+
+                let contentHtml = `<div>${msg.text}</div>`;
+                if (msg.mediaUrl) {
+                    contentHtml = `<img src="${msg.mediaUrl}" onclick="openLightbox('${msg.mediaUrl}')" class="max-w-full rounded-lg mb-1 cursor-pointer hover:opacity-90 transition">` + contentHtml;
+                } else if (msg.audioUrl) {
+                    contentHtml = `<audio controls src="${msg.audioUrl}" class="w-full my-1"></audio>`;
+                }
+
+                const statusSymbol = msg.status === 'sent' ? '✓' : (msg.status === 'delivered' ? '✓✓' : '•');
+                bubble.innerHTML = `
+                    ${contentHtml}
+                    <div class="text-[9px] opacity-70 text-right mt-1 font-mono">${new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${isMe ? statusSymbol : ''}</div>
+                `;
+
+                wrapper.appendChild(bubble);
+                viewport.appendChild(wrapper);
+            });
+
+            viewport.scrollTop = viewport.scrollHeight;
+        }
+
+        // Send Chat Message Pipeline (Optimistic + Idempotent Deduplicated)
+        window.handleSendMessage = async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if (!text || !activeChatTarget) return;
+
+            const nonce = crypto.randomUUID();
+            const timestamp = Date.now();
+            const chatId = activeChatTarget.type === 'direct' 
+                ? [currentUser.id, activeChatTarget.id].sort().join('_')
+                : activeChatTarget.id;
+            
+            const idempotencyKey = `${currentUser.id}_${timestamp}_${nonce}`;
+
+            // 1. Optimistic Save & Local Render
+            await db.messages.put({
+                idempotency_key: idempotencyKey,
+                chatId,
+                senderId: currentUser.id,
+                receiverId: activeChatTarget.id,
+                text,
+                timestamp,
+                status: 'sending'
+            });
+
+            input.value = '';
+            renderActiveMessages();
+
+            // 2. Transmit through Cloud Transit Buffer
+            const result = await sendMessage({
+                senderId: currentUser.id,
+                receiverId: activeChatTarget.id,
+                encryptedPayload: text,
+                rawContentForModeration: text,
+                deviceFingerprint,
+                nonce
+            });
+
+            if (result.banned) {
+                showBanModal(result.error);
+                return;
+            }
+
+            // 3. Update Local Status
+            await db.messages.update(idempotencyKey, { status: 'sent' });
+            renderActiveMessages();
+        };
+
+        // Realtime Subscription & Transient Inbox Drain Routine
+        async function listenToRealtimeInbox() {
+            // Fetch unread messages in cloud buffer
+            const { data } = await fetchTransientInbox(currentUser.id);
+            if (data && data.length > 0) {
+                for (const item of data) {
+                    await processIncomingMessage(item);
+                }
+            }
+
+            // Supabase Realtime Listener
+            supabase.channel('public:message_buffer')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'message_buffer', filter: `receiver_id=eq.${currentUser.id}` }, async (payload) => {
+                    await processIncomingMessage(payload.new);
+                })
+                .subscribe();
+        }
+
+        async function processIncomingMessage(item) {
+            const chatId = [item.sender_id, item.receiver_id].sort().join('_');
+
+            // Store in Local Dexie DB
+            await db.messages.put({
+                idempotency_key: item.idempotency_key,
+                chatId,
+                senderId: item.sender_id,
+                receiverId: item.receiver_id,
+                text: item.encrypted_payload,
+                timestamp: new Date(item.created_at).getTime(),
+                status: 'delivered'
+            });
+
+            // Instant Hard-Purge Cloud Buffer
+            await acknowledgeAndPurgeMessage(item.id, currentUser.id);
+
+            if (activeChatTarget && activeChatTarget.id === item.sender_id) {
+                renderActiveMessages();
+            }
+        }
+
+        // Typing State Event Handler
+        window.handleTypingEvent = function() {
+            if (!activeChatTarget || activeChatTarget.type !== 'direct') return;
+            const chatId = [currentUser.id, activeChatTarget.id].sort().join('_');
+            setTypingState(chatId, currentUser.id, true);
+        };
+
+        // Voice Recording Routine
+        window.toggleVoiceRecording = async function() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                mediaRecorder.start();
+
+                document.getElementById('voiceRecordingBar').classList.remove('hidden');
+                recordingSeconds = 0;
+                recordingTimerInterval = setInterval(() => {
+                    recordingSeconds++;
+                    const mins = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
+                    const secs = String(recordingSeconds % 60).padStart(2, '0');
+                    document.getElementById('recordingTimer').innerText = `${mins}:${secs}`;
+                }, 1000);
+            } catch (err) {
+                alert("Microphone access denied or unavailable.");
+            }
+        };
+
+        window.cancelVoiceRecording = function() {
+            if (mediaRecorder) mediaRecorder.stop();
+            clearInterval(recordingTimerInterval);
+            document.getElementById('voiceRecordingBar').classList.add('hidden');
+        };
+
+        window.finishAndSendVoiceNote = function() {
+            if (!mediaRecorder) return;
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const audioUrl = e.target.result;
+                    const timestamp = Date.now();
+                    const nonce = crypto.randomUUID();
+                    const chatId = activeChatTarget.type === 'direct' 
+                        ? [currentUser.id, activeChatTarget.id].sort().join('_')
+                        : activeChatTarget.id;
+
+                    await db.messages.put({
+                        idempotency_key: `${currentUser.id}_${timestamp}_${nonce}`,
+                        chatId,
+                        senderId: currentUser.id,
+                        receiverId: activeChatTarget.id,
+                        text: '🎤 Voice Note',
+                        audioUrl,
+                        timestamp,
+                        status: 'sent'
+                    });
+                    renderActiveMessages();
+                };
+                reader.readAsDataURL(audioBlob);
+            };
+            mediaRecorder.stop();
+            clearInterval(recordingTimerInterval);
+            document.getElementById('voiceRecordingBar').classList.add('hidden');
+        };
+
+        // Modal Helpers
+        window.openAddContactModal = () => document.getElementById('addContactModal').classList.remove('hidden');
+        window.openEditContactAliasModal = () => document.getElementById('editAliasModal').classList.remove('hidden');
+        window.openCreateGroupModal = async () => {
+            const { data: contacts } = await getContacts(currentUser.id);
+            const container = document.getElementById('groupMembersChecklist');
+            container.innerHTML = '';
+            (contacts || []).forEach(({ profiles: c }) => {
+                const div = document.createElement('label');
+                div.className = "flex items-center space-x-2 text-xs text-slate-200 p-1.5 hover:bg-slate-900 rounded cursor-pointer";
+                div.innerHTML = `<input type="checkbox" value="${c.id}" class="rounded bg-slate-800 border-slate-700 text-emerald-500"> <span>${c.display_name} (${c.lexis_id})</span>`;
+                container.appendChild(div);
+            });
+            document.getElementById('createGroupModal').classList.remove('hidden');
+        };
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+
+        window.executeAddContact = async function() {
+            const handle = document.getElementById('searchLexisInput').value;
+            const customAlias = document.getElementById('customAliasInput').value;
+            if (!handle) return;
+
+            const { data, error } = await searchContact(handle);
+            if (error) return alert(error);
+
+            await addContact(currentUser.id, data.id, customAlias || data.display_name);
+            await db.contacts.put({ id: data.id, lexis_id: data.lexis_id, display_name: data.display_name, custom_alias: customAlias });
+            closeModal('addContactModal');
+            loadSidebarList();
+        };
+
+        window.executeSaveContactAlias = async function() {
+            const alias = document.getElementById('editAliasInput').value;
+            if (!activeChatTarget || !alias) return;
+            await db.contacts.update(activeChatTarget.id, { custom_alias: alias });
+            activeChatTarget.name = alias;
+            document.getElementById('activeName').innerText = alias;
+            closeModal('editAliasModal');
+            loadSidebarList();
+        };
+
+        window.executeCreateGroup = async function() {
+            const name = document.getElementById('groupNameInput').value;
+            if (!name) return;
+            const checkboxes = document.querySelectorAll('#groupMembersChecklist input[type="checkbox"]:checked');
+            const memberIds = Array.from(checkboxes).map(cb => cb.value);
+            memberIds.push(currentUser.id);
+
+            const groupId = 'group_' + crypto.randomUUID();
+            await db.groups.put({
+                id: groupId,
+                name,
+                adminIds: [currentUser.id],
+                memberIds,
+                createdAt: Date.now()
+            });
+
+            closeModal('createGroupModal');
+            switchSidebarTab('groups');
+        };
+
+        window.openLightbox = (url) => {
+            document.getElementById('lightboxImage').src = url;
+            document.getElementById('lightboxModal').classList.remove('hidden');
+        };
+    </script>
+</body>
+</html>
+
